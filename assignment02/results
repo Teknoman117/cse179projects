@@ -1,0 +1,47 @@
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=2 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 2
+real	6m13.501s
+user	12m23.627s
+sys	0m0.057s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=4 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 4
+real	3m8.542s
+user	12m29.889s
+sys	0m0.090s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=8 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 8
+real	1m37.536s
+user	12m58.059s
+sys	0m0.010s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=16 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 16
+real	0m48.997s
+user	13m1.542s
+sys	0m0.016s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=24 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 24
+real	0m32.983s
+user	13m8.875s
+sys	0m0.038s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=28 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 28
+real	0m28.298s
+user	13m9.622s
+sys	0m0.041s
+
+
+nlewis3@engapps00 ~ $ time OMP_NUM_THREADS=32 ./assignment02 1024 1024 4096 0
+OpenMP Thread Count: 32
+real	0m27.890s
+user	14m24.008s
+sys	0m0.090s
