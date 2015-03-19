@@ -1,6 +1,9 @@
+#include <iostream>
 #include "utilities.hpp"
 
-void PrintGrid(std::ostream& stream, unsigned char *grid, int gridWidth, int gridHeight, const char* name)
+using namespace std;
+
+void PrintGrid(ostream& stream, unsigned char *grid, size_t gridWidth, size_t gridHeight, const char* name)
 {
     // Generate a random starting grid
     stream << name << ":\n------\n";
@@ -8,7 +11,7 @@ void PrintGrid(std::ostream& stream, unsigned char *grid, int gridWidth, int gri
     {
         for(int j = 0; j < gridWidth; j++)
         {
-            stream << grid[i*gridWidth + j] << " ";
+            stream << (unsigned) grid[i*gridWidth + j] << " ";
         }
         stream << endl;
     }
@@ -16,16 +19,16 @@ void PrintGrid(std::ostream& stream, unsigned char *grid, int gridWidth, int gri
 }
 
 // Run an iteration of game of life on the CPU (In parallel)
-void GameOfLife(unsigned char * currentGrid, unsigned char * temporaryGrid, int M, int N)
+void GameOfLife(unsigned char * currentGrid, unsigned char * temporaryGrid, size_t M, size_t N)
 {
     #pragma omp parallel for collapse(2)
-    for(int i = 0; i < gridHeight; i++)
+    for(int i = 0; i < N; i++)
     {
-        for(int j = 0; j < gridWidth; j++)
+        for(int j = 0; j < M; j++)
         {
             // Get the local cell position
             GridCell localCell(j, i);
-            int localCellId = localCell.GetProcessId(gridWidth);
+            int localCellId = localCell.GetProcessId(M);
 
             // Get the neighbors are alive
             int  liveNeighborCount = 0;
@@ -35,11 +38,11 @@ void GameOfLife(unsigned char * currentGrid, unsigned char * temporaryGrid, int 
                 {
                     // If this neighbor is located within the grid
                     GridCell neighbor(localCell.x + l, localCell.y + k);
-                    if(neighbor.x >= 0 && neighbor.x < gridWidth &&
-                       neighbor.y >= 0 && neighbor.y < gridHeight &&
+                    if(neighbor.x >= 0 && neighbor.x < M &&
+                       neighbor.y >= 0 && neighbor.y < N &&
                        !(k == 0 && l == 0))
                     {
-                        liveNeighborCount += currentGrid[neighbor.GetProcessId(gridWidth)];
+                        liveNeighborCount += currentGrid[neighbor.GetProcessId(M)];
                     }
                 }
             }
@@ -49,13 +52,13 @@ void GameOfLife(unsigned char * currentGrid, unsigned char * temporaryGrid, int 
             if(localCellValue == CELL_STATUS_ALIVE)
             {
                 // if we have one or two neighbors, we die from loneliness
-                if(liveNeighborCount <= 1 || liveNeighborCount >= 4)
+                if(liveNeighborCount < 2 || liveNeighborCount > 3)
                     localCellValue = CELL_STATUS_DEAD;
             }
             else
             {
                 // If we have two or three neighbors, we LIVE
-                if(liveNeighborCount == 2 || liveNeighborCount == 3)
+                if(liveNeighborCount == 3)
                     localCellValue = CELL_STATUS_ALIVE;
             }
             temporaryGrid[localCellId] = localCellValue;

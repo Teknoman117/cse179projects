@@ -3,6 +3,9 @@
 
 #include <iostream>
 
+#define CELL_STATUS_DEAD   0
+#define CELL_STATUS_ALIVE  1
+
 // Grid cell structure
 struct GridCell
 {
@@ -19,16 +22,16 @@ struct GridCell
     {
     }
 
-    size_t GetProcessId(int gridWidth);
+    size_t GetProcessId(int gridWidth)
     {
-        return (y * gridWidth) + cell.x;
+        return (y * gridWidth) + x;
     }
 };
 
 // Print a grid to the terminal
-void PrintGrid(std::ostream& stream, unsigned char *grid, int gridWidth, int gridHeight, const char* name);
+void PrintGrid(std::ostream& stream, unsigned char *grid, size_t gridWidth, size_t gridHeight, const char* name);
 
 // Run the game of life experiment on the CPU
-void GameOfLife(unsigned char * grid, unsigned char * targetGrid, int M, int N);
+void GameOfLife(unsigned char * grid, unsigned char * targetGrid, size_t M, size_t N);
 
 #endif
