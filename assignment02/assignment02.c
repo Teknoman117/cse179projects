@@ -68,18 +68,17 @@ int main(int argc, char *argv[])
     int iterationCount = atoi(argv[3]);
     int debugMode      = atoi(argv[4]);
 
-    // Local cell information / grid state for master
-    char            *initialGrid    = NULL;
-    char            *currentGrid    = NULL;
+    // Allocate the storage grids.  initial is for the random starting state, current is the current state, temporary is the write buffer
+    char *initialGrid = (char *) calloc (gridWidth * gridHeight, sizeof(char));
+    char *currentGrid = (char *) calloc (gridWidth * gridHeight, sizeof(char));
+    char *temporaryGrid = (char *) calloc (gridWidth * gridHeight, sizeof(char));
 
-    // Allocate the storage grids.  initial is for the random starting state, current is for debug and final grid display
-    initialGrid = (char *) calloc (gridWidth * gridHeight, sizeof(char));
-    currentGrid = (char *) calloc (gridWidth * gridHeight, sizeof(char));
+    // Initialize the grid to a random state
     for(int i = 0; i < gridWidth * gridHeight; i++)
         currentGrid[i] = initialGrid[i] = rand() % 2;
 
     // Display the initial grid
-    //PrintGrid(initialGrid, gridWidth, gridHeight, "Start");
+    PrintGrid(initialGrid, gridWidth, gridHeight, "Start");
 
     // Perform the main iterations of the game of life simulation
     for(int iteration = 0; iteration < iterationCount; iteration++)
@@ -133,9 +132,14 @@ int main(int argc, char *argv[])
                     if(liveNeighborCount == 2 || liveNeighborCount == 3)
                         localCellValue = CELL_STATUS_ALIVE;
                 }
-                currentGrid[localCellId] = localCellValue;
+                temporaryGrid[localCellId] = localCellValue;
             }
         }
+
+        // Swap the temporary grid and current grid pointers
+        char *temp = temporaryGrid;
+        temporaryGrid = currentGrid;
+        currentGrid = temp;
 
         if(debugMode)
         {
@@ -147,9 +151,10 @@ int main(int argc, char *argv[])
     }
 
     // Display the state of the final grid (and cleanup)
-    //PrintGrid(currentGrid, gridWidth, gridHeight, "Final");
+    PrintGrid(currentGrid, gridWidth, gridHeight, "Final");
     free(initialGrid);
     free(currentGrid);
+    free(temporaryGrid);
 
     // Number of threads
     #pragma omp parallel

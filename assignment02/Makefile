@@ -24,4 +24,4 @@ test: assignment02
 	./$(EXECUTABLE) 3 4 4 1 > $(DEBUG_LOG)
 
 archive: test
-	tar cJf $(ARCHIVE) $(SOURCES) $(DEBUG_LOG) $(LAUNCHER)
+	tar cJf $(ARCHIVE) $(SOURCES) $(DEBUG_LOG) results.txt
