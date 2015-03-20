@@ -3,7 +3,7 @@ CUDACFLAGS=-O3 -std=c++11 --ptxas-options=-v
 CXXFLAGS=-fopenmp -O3 -std=c++11 -I/opt/cuda/include -I/usr/local/cuda/include
 LDFLAGS=-lgomp
 
-SOURCES_CUDA=task1.cu task2.cu
+SOURCES_CUDA=task1.cu task2.cu task3.cu
 SOURCES_CXX=utilities.cpp assignment03.cpp
 EXECUTABLE=assignment03
 
