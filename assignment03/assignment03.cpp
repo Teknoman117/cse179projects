@@ -2,7 +2,9 @@
 #include <sstream>
 #include <cstdlib>
 #include <cstring>
+
 #include <cuda_runtime.h>
+#include <omp.h>
 
 #include "utilities.hpp"
 
@@ -95,10 +97,19 @@ int main (int argc, char** argv)
     float cpuTime = GameOfLifeCPU_Experiment(grid, temporaryGrid, grid, M, N, iterations);
     cout << " >> Elapsed Time (CPU): " << cpuTime << " ms" << endl;
 
+    // debug
+    //PrintGrid(cout, resultGrid, M, N, "GPU Grid");
+    //PrintGrid(cout, temporaryGrid, M, N, "CPU Grid");
+
     // Perform a comparison between the gpu result and the cpu result
     if(!memcmp((void*) grid, (void *) resultGrid, M * N))
     {
-        cout << "CPU and GPU experiment results match.  Speedup = " << cpuTime / gpuTime << "x" << endl;
+        unsigned int threads = 1;
+        #pragma omp parallel
+        #pragma omp master
+        threads = omp_get_num_threads();
+
+        cout << "Success: GPU speedup = " << cpuTime / gpuTime << "x over " << threads << " thread CPU" << endl;
     }
     else
     {

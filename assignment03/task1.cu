@@ -7,59 +7,63 @@ __global__ void GameOfLifeGPU(unsigned char *grid, unsigned char *resultGrid, si
     ssize_t x = (blockIdx.x * blockDim.x) + threadIdx.x;
     ssize_t y = (blockIdx.y * blockDim.y) + threadIdx.y;
 
-    // Compute the number of live neighbors
-    short liveNeighbors = 0;
-
-    // We manually check all of them for performance reasons
-    ssize_t aX, aY;
-    aX = x - 1; aY = y - 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x; aY = y - 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x + 1; aY = y - 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x - 1; aY = y;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    unsigned char localCellValue = grid[(y*M)+x];  // our value
-
-    aX = x + 1; aY = y;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x - 1; aY = y + 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x; aY = y + 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    aX = x + 1; aY = y + 1;
-    if(aX >= 0 && aY >= 0 && aX < M && aY < N)
-        liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
-
-    // Perform game of life logic
-    if(localCellValue == CELL_STATUS_ALIVE)
+    // Only operate if our location is valid
+    if(x < M && y < N)
     {
-        // if we have one or two neighbors, we die from loneliness
-        if(liveNeighbors < 2 || liveNeighbors > 3)
-            localCellValue = CELL_STATUS_DEAD;
+        // Compute the number of live neighbors
+        short liveNeighbors = 0;
+
+        // We manually check all of them for performance reasons
+        ssize_t aX, aY;
+        aX = x - 1; aY = y - 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x; aY = y - 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x + 1; aY = y - 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x - 1; aY = y;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        unsigned char localCellValue = grid[(y*M)+x];  // our value
+
+        aX = x + 1; aY = y;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x - 1; aY = y + 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x; aY = y + 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        aX = x + 1; aY = y + 1;
+        if(aX >= 0 && aY >= 0 && aX < M && aY < N)
+            liveNeighbors += (grid[(aY * M) + aX]) ? 1 : 0;
+
+        // Perform game of life logic
+        if(localCellValue == CELL_STATUS_ALIVE)
+        {
+            // if we have one or two neighbors, we die from loneliness
+            if(liveNeighbors < 2 || liveNeighbors > 3)
+                localCellValue = CELL_STATUS_DEAD;
+        }
+        else
+        {
+            // If we have two or three neighbors, we LIVE
+            if(liveNeighbors == 3)
+                localCellValue = CELL_STATUS_ALIVE;
+        }
+        resultGrid[(y*M)+x] = localCellValue;
     }
-    else
-    {
-        // If we have two or three neighbors, we LIVE
-        if(liveNeighbors == 3)
-            localCellValue = CELL_STATUS_ALIVE;
-    }
-    resultGrid[(y*M)+x] = localCellValue;
 }
 
 // Run the game of life experiment on the GPU
