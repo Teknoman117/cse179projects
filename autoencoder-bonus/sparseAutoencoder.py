@@ -244,12 +244,15 @@ def executeSparseAutoencoder():
     encoder = SparseAutoencoder(visible_size, hidden_size, rho, lamda, beta)
 
     """ Run the L-BFGS algorithm to get the optimal parameter values """
-
+    start = time.time()
     opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                             args = (training_data,), method = 'L-BFGS-B',
                                             jac = True, options = {'maxiter': max_iterations})
     opt_theta     = opt_solution.x
     opt_W1        = opt_theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
+    end = time.time()
+    duration = end - start
+    print( 'Execution time: {duration}'.format(duration=duration) )
 
     """ Visualize the obtained optimal W1 weights """
 
