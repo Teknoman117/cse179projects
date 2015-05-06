@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # This piece of software is bound by The MIT License (MIT)
 # Copyright (c) 2013 Siddharth Agrawal
 # Code written by : Siddharth Agrawal
@@ -9,10 +11,12 @@ import time
 import scipy.io
 import scipy.optimize
 import matplotlib.pyplot
+import cProfile
+
+from mpi4py import MPI
 
 ###########################################################################################
 """ The Sparse Autoencoder class """
-
 class SparseAutoencoder(object):
 
     #######################################################################################
@@ -220,7 +224,8 @@ def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
 ###########################################################################################
 """ Loads data, trains the Autoencoder and visualizes the learned weights """
 
-def executeSparseAutoencoder():
+def main(comm, rank, size):
+    print ( 'Processor: {rank}/{size}'.format(rank=(rank+1), size=size))
 
     """ Define the parameters of the Autoencoder """
 
@@ -230,7 +235,7 @@ def executeSparseAutoencoder():
     lamda          = 0.0001 # weight decay parameter
     beta           = 3      # weight of sparsity penalty term
     num_patches    = 10000  # number of training examples
-    max_iterations = 400    # number of optimization iterations
+    max_iterations = 100    # number of optimization iterations
 
     visible_size = vis_patch_side * vis_patch_side  # number of input units
     hidden_size  = hid_patch_side * hid_patch_side  # number of hidden units
@@ -249,13 +254,27 @@ def executeSparseAutoencoder():
                                             args = (training_data,), method = 'L-BFGS-B',
                                             jac = True, options = {'maxiter': max_iterations})
     opt_theta     = opt_solution.x
-    opt_W1        = opt_theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
+    #opt_W1        = opt_theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
     end = time.time()
     duration = end - start
     print( 'Execution time: {duration}'.format(duration=duration) )
 
+    """ Exchange our opt_theta with the other processes """
+    thetas = numpy.empty((numpy.size(opt_theta), size))
+    thetas[:, rank] = opt_theta
+    for i in range(size):
+        thetas[:, i] = comm.bcast(thetas[:, i], root=i)
+
     """ Visualize the obtained optimal W1 weights """
+    if rank == 0:
+        print( 'Comm time = {time}'.format(time=(end - start)))
+        for i in range(size):
+            opt_W1 = thetas[encoder.limit0 : encoder.limit1, i].reshape(hidden_size, visible_size)
+            visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
 
-    visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
-
-executeSparseAutoencoder()
+# Call the main function
+if __name__ == '__main__':
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
+    main(comm, rank, size)
