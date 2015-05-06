@@ -97,23 +97,26 @@ class SparseAutoencoder(object):
 
         """ Estimate the average activation value of the hidden layers """
         rho_cap = numpy.sum(hidden_layer, axis = 1) / totalInputShape
+        rho_cap = comm.reduce(rho_cap, None, op=MPI.SUM, root=0)
 
         """ Compute intermediate difference values using Backpropagation algorithm """
-
-        # this has to be distributed
         diff = output_layer - input
         sum_of_squares_error = 0.5 * numpy.sum(numpy.multiply(diff, diff)) / totalInputShape
+        sum_of_squares_error = comm.reduce(sum_of_squares_error, None, op=MPI.SUM, root=0)
 
+        # Compute the divergence, decay, and cost on master
+        if rank == 0:
+            KL_divergence = self.beta * numpy.sum(self.rho * numpy.log(self.rho / rho_cap) + (1 - self.rho) * numpy.log((1 - self.rho) / (1 - rho_cap)))
+            weight_decay = 0.5 * self.lamda * (numpy.sum(numpy.multiply(W1, W1)) + numpy.sum(numpy.multiply(W2, W2)))
 
-        weight_decay         = 0.5 * self.lamda * (numpy.sum(numpy.multiply(W1, W1)) +
-                                                   numpy.sum(numpy.multiply(W2, W2)))
-        KL_divergence        = self.beta * numpy.sum(self.rho * numpy.log(self.rho / rho_cap) +
-                                                    (1 - self.rho) * numpy.log((1 - self.rho) / (1 - rho_cap)))
+            KL_div_grad = self.beta * (-(self.rho / rho_cap) + ((1 - self.rho) / (1 - rho_cap)))
 
-        # uses the distributed values from above
-        cost                 = sum_of_squares_error + weight_decay + KL_divergence
+            cost = sum_of_squares_error + weight_decay + KL_divergence
+        else:
+            KL_div_grad = None
 
-        KL_div_grad = self.beta * (-(self.rho / rho_cap) + ((1 - self.rho) / (1 - rho_cap)))
+        # Push divergence gradient back out to the nodes (required a reduce to get)
+        KL_div_grad = comm.bcast(KL_div_grad, root=0);
 
         del_out = numpy.multiply(diff, numpy.multiply(output_layer, 1 - output_layer))
         del_hid = numpy.multiply(numpy.dot(numpy.transpose(W2), del_out) + numpy.transpose(numpy.matrix(KL_div_grad)),
@@ -127,10 +130,20 @@ class SparseAutoencoder(object):
         b1_grad = numpy.sum(del_hid, axis = 1)
         b2_grad = numpy.sum(del_out, axis = 1)
 
-        W1_grad = W1_grad / input.shape[1] + self.lamda * W1
-        W2_grad = W2_grad / input.shape[1] + self.lamda * W2
-        b1_grad = b1_grad / input.shape[1]
-        b2_grad = b2_grad / input.shape[1]
+        # Reduce all these to the master
+        W1_grad = comm.reduce(W1_grad, None, op=MPI.SUM, root=0)
+        W2_grad = comm.reduce(W2_grad, None, op=MPI.SUM, root=0)
+        b1_grad = comm.reduce(b1_grad, None, op=MPI.SUM, root=0)
+        b2_grad = comm.reduce(b2_grad, None, op=MPI.SUM, root=0)
+
+        # Only the master continues from here
+        if rank != 0:
+            return [None, None]
+
+        W1_grad = W1_grad / totalInputShape + self.lamda * W1
+        W2_grad = W2_grad / totalInputShape + self.lamda * W2
+        b1_grad = b1_grad / totalInputShape
+        b2_grad = b2_grad / totalInputShape
 
         """ Transform numpy matrices into arrays """
 
