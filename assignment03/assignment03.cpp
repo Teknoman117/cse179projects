@@ -67,6 +67,9 @@ int main (int argc, char** argv)
     size_t B = atoi(argv[4]);
     size_t iterations = atoi(argv[5]);
 
+    // Print experiment definition
+    cout << "Experiment: M = " << M << ", N = " << N << ", T = " << T << ", B = " << B << ", iterations = " << iterations << endl;
+
     // Denote if a bad scenario is presented
     if(M > T * B || N > T * B)
     {
@@ -109,7 +112,7 @@ int main (int argc, char** argv)
         #pragma omp master
         threads = omp_get_num_threads();
 
-        cout << "Success: GPU speedup = " << cpuTime / gpuTime << "x over " << threads << " thread CPU" << endl;
+        cout << "Success: GPU speedup = " << cpuTime / gpuTime << "x over " << threads << " thread CPU" << endl << endl;
     }
     else
     {

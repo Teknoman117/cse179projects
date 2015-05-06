@@ -1,0 +1,40 @@
+Experiment: M = 480, N = 480, T = 30, B = 16, iterations = 4096
+ >> Elapsed Time (GPU): 127.533 ms
+ >> Elapsed Time (CPU): 3157.11 ms
+Success: GPU speedup = 24.7553x over 8 thread CPU
+
+Experiment: M = 480, N = 480, T = 15, B = 32, iterations = 4096
+ >> Elapsed Time (GPU): 130.17 ms
+ >> Elapsed Time (CPU): 3061.97 ms
+Success: GPU speedup = 23.5228x over 8 thread CPU
+
+Experiment: M = 960, N = 960, T = 30, B = 32, iterations = 4096
+ >> Elapsed Time (GPU): 521.267 ms
+ >> Elapsed Time (CPU): 11278.4 ms
+Success: GPU speedup = 21.6365x over 8 thread CPU
+
+Experiment: M = 960, N = 960, T = 15, B = 64, iterations = 4096
+ >> Elapsed Time (GPU): 469.075 ms
+ >> Elapsed Time (CPU): 11244.7 ms
+Success: GPU speedup = 23.9721x over 8 thread CPU
+
+Experiment: M = 1920, N = 1920, T = 30, B = 64, iterations = 512
+ >> Elapsed Time (GPU): 263.125 ms
+ >> Elapsed Time (CPU): 5334.72 ms
+Success: GPU speedup = 20.2745x over 8 thread CPU
+
+Experiment: M = 1920, N = 1920, T = 15, B = 128, iterations = 512
+ >> Elapsed Time (GPU): 231.792 ms
+ >> Elapsed Time (CPU): 5351.34 ms
+Success: GPU speedup = 23.0868x over 8 thread CPU
+
+Experiment: M = 2100, N = 2100, T = 30, B = 70, iterations = 512
+ >> Elapsed Time (GPU): 313.018 ms
+ >> Elapsed Time (CPU): 6652.01 ms
+Success: GPU speedup = 21.2512x over 8 thread CPU
+
+Experiment: M = 2100, N = 2100, T = 15, B = 140, iterations = 512
+ >> Elapsed Time (GPU): 288.796 ms
+ >> Elapsed Time (CPU): 6426.89 ms
+Success: GPU speedup = 22.2541x over 8 thread CPU
+
