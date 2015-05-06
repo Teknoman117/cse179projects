@@ -26,11 +26,6 @@ import cProfile
 
 from mpi4py import MPI
 
-# Get the MPI variables
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-
 ###########################################################################################
 """ The Sparse Autoencoder class """
 class SparseAutoencoder(object):
@@ -86,7 +81,7 @@ class SparseAutoencoder(object):
     #######################################################################################
     """ Returns the cost of the Autoencoder and gradient at a particular 'theta' """
 
-    def sparseAutoencoderCost(self, theta, input):
+    def sparseAutoencoderCost(self, theta, input, comm, rank, size):
 
         """ Distribute the new theta values to secondary processors """
         theta = comm.bcast(theta, root=0)
@@ -262,6 +257,10 @@ def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
 """ Loads data, trains the Autoencoder and visualizes the learned weights """
 
 if __name__ == "__main__":
+    # Get the MPI variables
+    comm = MPI.COMM_WORLD
+    rank = comm.Get_rank()
+    size = comm.Get_size()
     print ( 'Processor: {rank}/{size}'.format(rank=(rank+1), size=size))
 
     """ Define the parameters of the Autoencoder """
@@ -289,13 +288,13 @@ if __name__ == "__main__":
     # Main processor runs the optimize function (also the work scheduler)
     if rank == 0:
         opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
-                                                args = (training_data,), method = 'L-BFGS-B',
+                                                args = (training_data, comm, rank, size), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})
         comm.bcast(numpy.empty(0), root=0)
 
     # Secondary processors check if the work is complete, otherwise they run another cycle
     else:
-        while encoder.sparseAutoencoderCost(None, training_data)[0] != None:
+        while encoder.sparseAutoencoderCost(None, training_data, comm, rank, size)[0] != None:
             pass
 
     # Compute the execution duration
