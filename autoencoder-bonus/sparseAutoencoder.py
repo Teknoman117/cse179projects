@@ -89,9 +89,9 @@ class SparseAutoencoder(object):
     def sparseAutoencoderCost(self, theta, input):
 
         """ Distribute the new theta values to secondary processors """
-        if rank == 0:
-            comm.bcast(True, root=0);
         theta = comm.bcast(theta, root=0)
+        if theta.size == 0:
+            return [None, None]
 
         """ Extract weights and biases from 'theta' input """
         W1 = theta[self.limit0 : self.limit1].reshape(self.hidden_size, self.visible_size)
@@ -149,7 +149,7 @@ class SparseAutoencoder(object):
 
         # Only the master continues from here
         if rank != 0:
-            return [None, None]
+            return [theta.size, None]
 
         W1_grad = W1_grad / totalInputShape + self.lamda * W1
         W2_grad = W2_grad / totalInputShape + self.lamda * W2
@@ -291,7 +291,7 @@ if __name__ == "__main__":
         opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                                 args = (training_data,), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})
-        comm.bcast(False, root=0)
+        comm.bcast(numpy.empty(0), root=0)
 
         # Compute the execution duration
         end = time.time()
@@ -305,11 +305,8 @@ if __name__ == "__main__":
 
     # Secondary processors check if the work is complete, otherwise they run another cycle
     else:
-        while True:
-            if comm.bcast(None, root=0) == False:
-                break
-            else:
-                encoder.sparseAutoencoderCost(None, training_data)
+        while encoder.sparseAutoencoderCost(None, training_data)[0] != None:
+            pass
 
         # Compute the execution duration
         end = time.time()
