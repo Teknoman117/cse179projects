@@ -15,6 +15,11 @@ import cProfile
 
 from mpi4py import MPI
 
+# Get the MPI variables
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+
 ###########################################################################################
 """ The Sparse Autoencoder class """
 class SparseAutoencoder(object):
@@ -72,12 +77,17 @@ class SparseAutoencoder(object):
 
     def sparseAutoencoderCost(self, theta, input):
 
-        """ Extract weights and biases from 'theta' input """
+        """ Distribute the new theta values to secondary processors """
+        if rank == 0:
+            comm.bcast(True, root=0);
+        theta = comm.bcast(theta, root=0)
 
+        """ Extract weights and biases from 'theta' input """
         W1 = theta[self.limit0 : self.limit1].reshape(self.hidden_size, self.visible_size)
         W2 = theta[self.limit1 : self.limit2].reshape(self.visible_size, self.hidden_size)
         b1 = theta[self.limit2 : self.limit3].reshape(self.hidden_size, 1)
         b2 = theta[self.limit3 : self.limit4].reshape(self.visible_size, 1)
+        totalInputShape = input.shape[1] * size;
 
         """ Compute output layers by performing a feedforward pass
             Computation is done for all the training inputs simultaneously """
@@ -86,21 +96,20 @@ class SparseAutoencoder(object):
         output_layer = self.sigmoid(numpy.dot(W2, hidden_layer) + b2)
 
         """ Estimate the average activation value of the hidden layers """
-
-        rho_cap = numpy.sum(hidden_layer, axis = 1) / input.shape[1]
+        rho_cap = numpy.sum(hidden_layer, axis = 1) / totalInputShape
 
         """ Compute intermediate difference values using Backpropagation algorithm """
 
         # this has to be distributed
         diff = output_layer - input
-        sum_of_squares_error = 0.5 * numpy.sum(numpy.multiply(diff, diff)) / input.shape[1]
+        sum_of_squares_error = 0.5 * numpy.sum(numpy.multiply(diff, diff)) / totalInputShape
 
 
         weight_decay         = 0.5 * self.lamda * (numpy.sum(numpy.multiply(W1, W1)) +
                                                    numpy.sum(numpy.multiply(W2, W2)))
         KL_divergence        = self.beta * numpy.sum(self.rho * numpy.log(self.rho / rho_cap) +
                                                     (1 - self.rho) * numpy.log((1 - self.rho) / (1 - rho_cap)))
-                                                    
+
         # uses the distributed values from above
         cost                 = sum_of_squares_error + weight_decay + KL_divergence
 
@@ -228,7 +237,7 @@ def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
 ###########################################################################################
 """ Loads data, trains the Autoencoder and visualizes the learned weights """
 
-def main(comm, rank, size):
+if __name__ == "__main__":
     print ( 'Processor: {rank}/{size}'.format(rank=(rank+1), size=size))
 
     """ Define the parameters of the Autoencoder """
@@ -237,8 +246,8 @@ def main(comm, rank, size):
     rho            = 0.01   # desired average activation of hidden units
     lamda          = 0.0001 # weight decay parameter
     beta           = 3      # weight of sparsity penalty term
-    num_patches    = 10000  # number of training examples
-    max_iterations = 100    # number of optimization iterations
+    max_iterations = 400    # number of optimization iterations
+    num_patches    = int(10000 / size) # number of training examples
 
     visible_size = vis_patch_side * vis_patch_side  # number of input units
     hidden_size  = hid_patch_side * hid_patch_side  # number of hidden units
@@ -246,39 +255,31 @@ def main(comm, rank, size):
     """ Load randomly sampled image patches as dataset """
     training_data = loadDataset(num_patches, vis_patch_side,int(time.time() / float(rank+1)))
 
-    """ Initialize the Autoencoder with the above parameters, distribute initial set to processors """
+    """ Initialize the Autoencoder with the above parameters, distribute initial state to processors """
     encoder = SparseAutoencoder(visible_size, hidden_size, rho, lamda, beta)
     encoder.theta = comm.bcast(encoder.theta, root=0)
 
     """ Run the L-BFGS algorithm to get the optimal parameter values """
     start = time.time()
-    opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
-                                            args = (training_data,), method = 'L-BFGS-B',
-                                            jac = True, options = {'maxiter': max_iterations})
-    #opt_theta     = opt_solution.x
-    #opt_W1        = opt_theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
-    end = time.time()
-    duration = end - start
-    print( 'Execution time: {duration}'.format(duration=duration) )
 
-    """ Exchange our opt_theta with the other processes """
-    deltas = numpy.empty((numpy.size(opt_solution.x), size))
-    deltas[:, rank] = opt_solution.x - encoder.theta
-    for i in range(size):
-        deltas[:, i] = comm.bcast(deltas[:, i], root=i)
-
-    """ Visualize the obtained optimal W1 weights """
+    # Main processor runs the optimize function (also the work scheduler)
     if rank == 0:
-        for i in range(size):
-            opt_W1 = (deltas[:,i] + encoder.theta)[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
-            visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
-
-        opt_W1 = (numpy.sum(deltas, axis=1) + encoder.theta)[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
+        opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
+                                                args = (training_data,), method = 'L-BFGS-B',
+                                                jac = True, options = {'maxiter': max_iterations})
+        comm.bcast(False, root=0)
+        theta = opt_solution.x
+        opt_W1 = theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
         visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
 
+    # Secondary processors check if the work is complete, otherwise they run another cycle
+    else:
+        while True:
+            if comm.bcast(None, root=0) == False:
+                break
+            else:
+                encoder.sparseAutoencoderCost(None, training_data)
 
-# Call the main function
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
-main(comm, rank, size)
+    end = time.time()
+    duration = end - start
+    print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
