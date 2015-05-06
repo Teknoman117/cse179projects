@@ -1,13 +1,13 @@
--> This is a solution to the Sparse Autoencoder exercise in the Stanford UFLDL Tutorial(http://ufldl.stanford.edu/wiki/index.php/Exercise:Sparse_Autoencoder)
--> The code has been written in Python using Scipy, Numpy and Matplotlib
--> The code is bound by The MIT License (MIT)
+Parallel Sparse Autoencoder
+===========================
 
-Running the code:
+Original code from: https://github.com/siddharth-agrawal/Sparse-Autoencoder
 
--> Download the data file 'IMAGES.mat' and the code file 'sparseAutoencoder.py'
--> Put them in the same folder, and run the program by typing in 'python sparseAutoencoder.py' in the command line
--> You should get an output similar to the file 'output.png'
--> The code takes about one and a half minutes to execute on an i3 processor
+Modified by Nathaniel R. Lewis (@Teknoman117) and Zachary Canann (@zcanann)
 
-Code written by: Siddharth Agrawal
-Email ID: siddharth.950@gmail.com
+Changed to support parallel training operation using MPI.  Functions
+by dividing the training sets across a collection of machines and
+computes the local contribution to the function gradient.  These are
+then combined on the master using MPI reduce, and fed into the
+original optimization function.  The new theta is then broadcast
+to all the machines in the cluster.

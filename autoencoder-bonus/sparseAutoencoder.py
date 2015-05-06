@@ -1,9 +1,20 @@
 #!/usr/bin/python
 
+# --- Original software copyright ---
 # This piece of software is bound by The MIT License (MIT)
 # Copyright (c) 2013 Siddharth Agrawal
 # Code written by : Siddharth Agrawal
 # Email ID : siddharth.950@gmail.com
+
+# Modified by Nathaniel R. Lewis and Zachary Canann
+#
+# Changed to support parallel training operation using MPI.  Functions
+# by dividing the training sets across a collection of machines and
+# computes the local contribution to the function gradient.  These are
+# then combined on the master using MPI reduce, and fed into the
+# original optimization function.  The new theta is then broadcast
+# to all the machines in the cluster.
+#
 
 import numpy
 import math
@@ -281,6 +292,13 @@ if __name__ == "__main__":
                                                 args = (training_data,), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})
         comm.bcast(False, root=0)
+
+        # Compute the execution duration
+        end = time.time()
+        duration = end - start
+        print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
+
+        # Visualize the solution
         theta = opt_solution.x
         opt_W1 = theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
         visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
@@ -293,6 +311,7 @@ if __name__ == "__main__":
             else:
                 encoder.sparseAutoencoderCost(None, training_data)
 
-    end = time.time()
-    duration = end - start
-    print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
+        # Compute the execution duration
+        end = time.time()
+        duration = end - start
+        print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
