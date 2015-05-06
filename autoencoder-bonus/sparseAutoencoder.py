@@ -293,22 +293,18 @@ if __name__ == "__main__":
                                                 jac = True, options = {'maxiter': max_iterations})
         comm.bcast(numpy.empty(0), root=0)
 
-        # Compute the execution duration
-        end = time.time()
-        duration = end - start
-        print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
-
-        # Visualize the solution
-        theta = opt_solution.x
-        opt_W1 = theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
-        visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
-
     # Secondary processors check if the work is complete, otherwise they run another cycle
     else:
         while encoder.sparseAutoencoderCost(None, training_data)[0] != None:
             pass
 
-        # Compute the execution duration
-        end = time.time()
-        duration = end - start
-        print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
+    # Compute the execution duration
+    end = time.time()
+    duration = end - start
+    print( 'Execution time: {duration} on {processor}'.format(duration=duration, processor=(rank+1)) )
+
+    # Main processor visualizes results
+    if rank == 0:
+        theta = opt_solution.x
+        opt_W1 = theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
+        visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
