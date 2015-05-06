@@ -91,13 +91,17 @@ class SparseAutoencoder(object):
 
         """ Compute intermediate difference values using Backpropagation algorithm """
 
+        # this has to be distributed
         diff = output_layer - input
-
         sum_of_squares_error = 0.5 * numpy.sum(numpy.multiply(diff, diff)) / input.shape[1]
+
+
         weight_decay         = 0.5 * self.lamda * (numpy.sum(numpy.multiply(W1, W1)) +
                                                    numpy.sum(numpy.multiply(W2, W2)))
         KL_divergence        = self.beta * numpy.sum(self.rho * numpy.log(self.rho / rho_cap) +
                                                     (1 - self.rho) * numpy.log((1 - self.rho) / (1 - rho_cap)))
+                                                    
+        # uses the distributed values from above
         cost                 = sum_of_squares_error + weight_decay + KL_divergence
 
         KL_div_grad = self.beta * (-(self.rho / rho_cap) + ((1 - self.rho) / (1 - rho_cap)))
@@ -156,7 +160,7 @@ def normalizeDataset(dataset):
 ###########################################################################################
 """ Randomly samples image patches, normalizes them and returns as dataset """
 
-def loadDataset(num_patches, patch_side):
+def loadDataset(num_patches, patch_side, seed):
 
     """ Load images into numpy array """
 
@@ -170,7 +174,7 @@ def loadDataset(num_patches, patch_side):
     """ Initialize random numbers for random sampling of images
         There are 10 images of size 512 X 512 """
 
-    rand = numpy.random.RandomState(int(time.time()))
+    rand = numpy.random.RandomState(seed)
     image_indices = rand.randint(512 - patch_side, size = (num_patches, 2))
     image_number  = rand.randint(10, size = num_patches)
 
@@ -228,7 +232,6 @@ def main(comm, rank, size):
     print ( 'Processor: {rank}/{size}'.format(rank=(rank+1), size=size))
 
     """ Define the parameters of the Autoencoder """
-
     vis_patch_side = 8      # side length of sampled image patches
     hid_patch_side = 5      # side length of representative image patches
     rho            = 0.01   # desired average activation of hidden units
@@ -241,40 +244,41 @@ def main(comm, rank, size):
     hidden_size  = hid_patch_side * hid_patch_side  # number of hidden units
 
     """ Load randomly sampled image patches as dataset """
+    training_data = loadDataset(num_patches, vis_patch_side,int(time.time() / float(rank+1)))
 
-    training_data = loadDataset(num_patches, vis_patch_side)
-
-    """ Initialize the Autoencoder with the above parameters """
-
+    """ Initialize the Autoencoder with the above parameters, distribute initial set to processors """
     encoder = SparseAutoencoder(visible_size, hidden_size, rho, lamda, beta)
+    encoder.theta = comm.bcast(encoder.theta, root=0)
 
     """ Run the L-BFGS algorithm to get the optimal parameter values """
     start = time.time()
     opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                             args = (training_data,), method = 'L-BFGS-B',
                                             jac = True, options = {'maxiter': max_iterations})
-    opt_theta     = opt_solution.x
+    #opt_theta     = opt_solution.x
     #opt_W1        = opt_theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
     end = time.time()
     duration = end - start
     print( 'Execution time: {duration}'.format(duration=duration) )
 
     """ Exchange our opt_theta with the other processes """
-    thetas = numpy.empty((numpy.size(opt_theta), size))
-    thetas[:, rank] = opt_theta
+    deltas = numpy.empty((numpy.size(opt_solution.x), size))
+    deltas[:, rank] = opt_solution.x - encoder.theta
     for i in range(size):
-        thetas[:, i] = comm.bcast(thetas[:, i], root=i)
+        deltas[:, i] = comm.bcast(deltas[:, i], root=i)
 
     """ Visualize the obtained optimal W1 weights """
     if rank == 0:
-        print( 'Comm time = {time}'.format(time=(end - start)))
         for i in range(size):
-            opt_W1 = thetas[encoder.limit0 : encoder.limit1, i].reshape(hidden_size, visible_size)
+            opt_W1 = (deltas[:,i] + encoder.theta)[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
             visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
 
+        opt_W1 = (numpy.sum(deltas, axis=1) + encoder.theta)[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
+        visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
+
+
 # Call the main function
-if __name__ == '__main__':
-    comm = MPI.COMM_WORLD
-    rank = comm.Get_rank()
-    size = comm.Get_size()
-    main(comm, rank, size)
+comm = MPI.COMM_WORLD
+rank = comm.Get_rank()
+size = comm.Get_size()
+main(comm, rank, size)
