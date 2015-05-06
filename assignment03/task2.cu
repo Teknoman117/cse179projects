@@ -1,4 +1,5 @@
 #include "utilities.hpp"
+#include <cstdio>
 
 // Task 1 kernel - simple, only uses global memory.
 __global__ void GameOfLifeGPU(unsigned char *grid, unsigned char *resultGrid, size_t M, size_t N)
@@ -81,6 +82,13 @@ __global__ void GameOfLifeGPU(unsigned char *grid, unsigned char *resultGrid, si
 // Run the game of life experiment on the GPU
 float GameOfLifeGPU_Experiment(unsigned char *grid, unsigned char *resultGrid, size_t M, size_t N, size_t B, size_t T, size_t iterations)
 {
+    // Assert if the allocated size is too great
+    if((T+2)*(T+2) > 1024)
+    {
+        fprintf(stderr, "Warning, too many threads requested per block {%d+2 x %d+2}", T, T);
+        exit(1);
+    }
+
     // Allocate device memory for the experiment
     unsigned char *deviceGrid, *deviceGridResult;
     cudaMalloc(&deviceGrid, M*N);
