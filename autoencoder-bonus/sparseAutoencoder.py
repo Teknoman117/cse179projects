@@ -23,6 +23,8 @@ import scipy.io
 import scipy.optimize
 import matplotlib.pyplot
 import cProfile
+import pickle
+import sys
 
 from mpi4py import MPI
 
@@ -229,31 +231,6 @@ def loadDataset(num_patches, patch_side, seed):
     return dataset
 
 ###########################################################################################
-""" Visualizes the obtained optimal W1 values as images """
-
-def visualizeW1(opt_W1, vis_patch_side, hid_patch_side):
-
-    """ Add the weights as a matrix of images """
-
-    figure, axes = matplotlib.pyplot.subplots(nrows = hid_patch_side,
-                                              ncols = hid_patch_side)
-    index = 0
-
-    for axis in axes.flat:
-
-        """ Add row of weights as an image to the plot """
-
-        image = axis.imshow(opt_W1[index, :].reshape(vis_patch_side, vis_patch_side),
-                            cmap = matplotlib.pyplot.cm.gray, interpolation = 'nearest')
-        axis.set_frame_on(False)
-        axis.set_axis_off()
-        index += 1
-
-    """ Show the obtained plot """
-
-    matplotlib.pyplot.show()
-
-###########################################################################################
 """ Loads data, trains the Autoencoder and visualizes the learned weights """
 
 if __name__ == "__main__":
@@ -287,9 +264,10 @@ if __name__ == "__main__":
 
     # Main processor runs the optimize function (also the work scheduler)
     if rank == 0:
-        opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
+        """opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                                 args = (training_data, comm, rank, size), method = 'L-BFGS-B',
-                                                jac = True, options = {'maxiter': max_iterations})
+                                                jac = True, options = {'maxiter': max_iterations})"""
+        opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxiter=max_iterations)
         comm.bcast(numpy.empty(0), root=0)
 
     # Secondary processors check if the work is complete, otherwise they run another cycle
@@ -304,6 +282,8 @@ if __name__ == "__main__":
 
     # Main processor visualizes results
     if rank == 0:
-        theta = opt_solution.x
+        #theta = opt_solution.x
+        theta = opt_solution[0]
         opt_W1 = theta[encoder.limit0 : encoder.limit1].reshape(hidden_size, visible_size)
-        visualizeW1(opt_W1, vis_patch_side, hid_patch_side)
+        with open('result.pickle', 'wb') as jar:
+            pickle.dump([opt_W1, vis_patch_side, hid_patch_side], jar)
