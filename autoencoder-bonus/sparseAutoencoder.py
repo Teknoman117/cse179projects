@@ -24,7 +24,6 @@ import scipy.optimize
 import cProfile
 import pickle
 import sys
-import pyprind
 
 from mpi4py import MPI
 
