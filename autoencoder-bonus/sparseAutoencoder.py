@@ -43,7 +43,6 @@ class SparseAutoencoder(object):
         self.rho = rho                      # desired average activation of hidden units
         self.lamda = lamda                  # weight decay parameter
         self.beta = beta                    # weight of sparsity penalty term
-        self.iter = 0
 
         """ Set limits for accessing 'theta' values """
 
@@ -164,8 +163,6 @@ class SparseAutoencoder(object):
 
         theta_grad = numpy.concatenate((W1_grad.flatten(), W2_grad.flatten(),
                                         b1_grad.flatten(), b2_grad.flatten()))
-        print ('Completed Iteration: {i}'.format(i=self.iter))
-        self.iter = self.iter + 1
 
         return [cost, theta_grad]
 
@@ -271,7 +268,7 @@ if __name__ == "__main__":
                                                 args = (training_data, comm, rank, size), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})"""
         indicator = None
-        opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxfun=max_iterations)
+        opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxfun=max_iterations, disp=True)
         comm.bcast(numpy.empty(0), root=0)
 
     # Secondary processors check if the work is complete, otherwise they run another cycle
