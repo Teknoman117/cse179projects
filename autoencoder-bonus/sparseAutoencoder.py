@@ -267,7 +267,6 @@ if __name__ == "__main__":
         """opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                                 args = (training_data, comm, rank, size), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})"""
-        indicator = None
         opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxfun=max_iterations, disp=True)
         comm.bcast(numpy.empty(0), root=0)
 
