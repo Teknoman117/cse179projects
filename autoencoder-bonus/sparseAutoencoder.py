@@ -21,10 +21,10 @@ import math
 import time
 import scipy.io
 import scipy.optimize
-import matplotlib.pyplot
 import cProfile
 import pickle
 import sys
+import pyprind
 
 from mpi4py import MPI
 
@@ -44,6 +44,7 @@ class SparseAutoencoder(object):
         self.rho = rho                      # desired average activation of hidden units
         self.lamda = lamda                  # weight decay parameter
         self.beta = beta                    # weight of sparsity penalty term
+        self.iter = 0
 
         """ Set limits for accessing 'theta' values """
 
@@ -164,6 +165,8 @@ class SparseAutoencoder(object):
 
         theta_grad = numpy.concatenate((W1_grad.flatten(), W2_grad.flatten(),
                                         b1_grad.flatten(), b2_grad.flatten()))
+        print ('Completed Iteration: {i}'.format(i=self.iter))
+        self.iter = self.iter + 1
 
         return [cost, theta_grad]
 
@@ -238,7 +241,6 @@ if __name__ == "__main__":
     comm = MPI.COMM_WORLD
     rank = comm.Get_rank()
     size = comm.Get_size()
-    print ( 'Processor: {rank}/{size}'.format(rank=(rank+1), size=size))
 
     """ Define the parameters of the Autoencoder """
     vis_patch_side = 8      # side length of sampled image patches
@@ -259,6 +261,8 @@ if __name__ == "__main__":
     encoder = SparseAutoencoder(visible_size, hidden_size, rho, lamda, beta)
     encoder.theta = comm.bcast(encoder.theta, root=0)
 
+    print ( 'Processor Online: {rank}/{size} - load: {load}'.format(rank=(rank+1), size=size, load=num_patches))
+
     """ Run the L-BFGS algorithm to get the optimal parameter values """
     start = time.time()
 
@@ -267,7 +271,8 @@ if __name__ == "__main__":
         """opt_solution  = scipy.optimize.minimize(encoder.sparseAutoencoderCost, encoder.theta,
                                                 args = (training_data, comm, rank, size), method = 'L-BFGS-B',
                                                 jac = True, options = {'maxiter': max_iterations})"""
-        opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxiter=max_iterations)
+        indicator = None
+        opt_solution = scipy.optimize.fmin_l_bfgs_b(encoder.sparseAutoencoderCost, encoder.theta, args = (training_data, comm, rank, size), maxfun=max_iterations)
         comm.bcast(numpy.empty(0), root=0)
 
     # Secondary processors check if the work is complete, otherwise they run another cycle
